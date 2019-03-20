@@ -374,16 +374,17 @@ Will run original MODE-ACTIVATION and its ARGS only when
     (insert
      (format
       "
- --------------------------------------------------------------------------------------
- | It looks like you are trying to run treemacs. Would you like some help with that?  |
- | You have called %s, but this only the major mode for treemacs' buffers, |
- | it is not meant to be used manually. Instead you should call a function like       |
- |  * %s,                                                                       |
- |  * %s, or                                                      |
- |  * %s                                        |
- |                                                                                    |
- | You can safely delete this buffer.                                                 |
- --------------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------------
+ | It looks like you are trying to run treemacs. Would you like some help with that? |
+ | You have called %s, but that is only the major mode for treemacs'      |
+ | buffers, it is not meant to be used interactively. Instead you are meant call a   |
+ | function like                                                                     |
+ |  * %s,                                                                      |
+ |  * %s, or                                                     |
+ |  * %s                                       |
+ |                                                                                   |
+ | You can safely delete this buffer.                                                |
+ -------------------------------------------------------------------------------------
 %s
 "
       (propertize "treemacs-mode" 'face 'font-lock-function-name-face)
