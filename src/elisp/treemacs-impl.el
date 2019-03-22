@@ -109,6 +109,18 @@
 
 (declare-function treemacs-mode "treemacs-mode")
 
+(defvar treemacs-valid-button-states
+  '(root-node-open
+    root-node-closed
+    dir-node-open
+    dir-node-closed
+    file-node-open
+    file-node-closed
+    tag-node-open
+    tag-node-closed
+    tag-node)
+  "List of all valid values for treemacs buttons' :state property.")
+
 (defvar treemacs--closed-node-states
   '(root-node-closed
     dir-node-closed
@@ -173,6 +185,16 @@ Used to show an error message if someone mistakenly actives `treemacs-mode'.")
    (if (file-directory-p ,path)
        path
      (treemacs--parent ,path))))
+
+(define-inline treemacs--rtrim (str)
+  "Remove final newline in STR."
+  (declare (pure t) (side-effect-free t))
+  (inline-letevals (str)
+    (inline-quote
+     (let ((len (1- (length ,str))))
+       (if (= 10 (aref ,str len))
+           (substring ,str 0 len)
+         ,str)))))
 
 (define-inline treemacs--delete-line ()
   "Delete the current line.
@@ -830,6 +852,22 @@ failed."
        (set-window-point (get-buffer-window) (point))
        result))))
 
+(define-inline treemacs-find-visible-node (path)
+  "Find position of node at PATH.
+Unlike `treemacs-find-node' this will not expand current nodes in the view, but
+only look among those currently visible. The result however is the same: either
+a marker ponting to the found node or nil.
+
+PATH: Node Path"
+  (inline-letevals (path)
+    (inline-quote
+     (progn
+       (-if-let (direct-node (treemacs-find-in-dom ,path))
+           (treemacs-dom-node->position direct-node)
+         (-when-let (parent (treemacs-find-in-dom (treemacs--parent ,path)))
+           (treemacs-first-child-node-where (treemacs-dom-node->position parent)
+             (treemacs-is-path ,path :same-as (treemacs-button-get child-btn :path)))))))))
+
 (defun treemacs-find-node (path &optional project)
   "Find position of node identified by PATH under PROJECT in the current buffer.
 Inspite the signature this function effectively supports two different calling
@@ -1050,6 +1088,7 @@ Valid states are 'visible, 'exists and 'none."
   (let ((window-size-fixed))
     (treemacs--set-width treemacs-width)))
 
+;; rename -> path-parent
 (define-inline treemacs--parent (path)
   "Parent of PATH, or PATH itself if PATH is the root directory."
   (declare (pure t) (side-effect-free t))
@@ -1192,6 +1231,7 @@ GOTO-TAG: Bool"
      (memq (treemacs-button-get node :state)
            '(file-node-open file-node-closed dir-node-open dir-node-closed)))))
 
+;; TODO(2019/02/08): move + inline
 (defun treemacs-is-path-visible? (path)
   "Return whether a node for PATH is displayed in the current buffer.
 The return value, if PATH is visible, is either the dom node of PATH - if it
@@ -1211,17 +1251,17 @@ from `treemacs-copy-file' or `treemacs-move-file'."
         (finish-msg))
     (pcase action
       (:copy
-       (setf no-node-msg "There is nothing to copy here."
-             wrong-type-msg "Only files and directories can be copied."
-             prompt "Copy to: "
+       (setf no-node-msg     "There is nothing to copy here."
+             wrong-type-msg  "Only files and directories can be copied."
+             prompt          "Copy to: "
              action-function #'f-copy
-             finish-msg "Copied %s to %s"))
+             finish-msg      "Copied %s to %s"))
       (:move
-       (setf no-node-msg "There is nothing to move here."
-             wrong-type-msg "Only files and directories can be moved."
-             prompt "Move to: "
+       (setf no-node-msg     "There is nothing to move here."
+             wrong-type-msg  "Only files and directories can be moved."
+             prompt          "Move to: "
              action-function #'f-move
-             finish-msg "Moved %s to %s")))
+             finish-msg      "Moved %s to %s")))
     (treemacs-block
      (treemacs-unless-let (node (treemacs-node-at-point))
          (treemacs-error-return no-node-msg)

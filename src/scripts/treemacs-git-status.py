@@ -1,7 +1,9 @@
 from subprocess import Popen, PIPE
 from os import listdir
-from os.path import isfile, isdir
+from os.path import isdir
 from posixpath import join
+import sys
+import sys
 import sys
 
 GIT_ROOT  = str.encode(sys.argv[1])
@@ -77,7 +79,7 @@ def main():
         b"))"
     STDOUT.write(elisp_ht)
 
-
-    sys.exit(proc.poll())
+    proc.poll()
+    sys.exit(proc.returncode)
 
 main()

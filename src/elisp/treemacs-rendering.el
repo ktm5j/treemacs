@@ -144,6 +144,24 @@ the height of treemacs' icons must be taken into account."
   (inline-letevals (f1 f2)
     (inline-quote (file-newer-than-file-p ,f2 ,f1))))
 
+(define-inline treemacs--git-status-face (status default)
+  "Get the git face for the given STATUS.
+Use DEFAULT as default match.
+
+STATUS: String
+DEFAULT: Face"
+  (declare (pure t) (side-effect-free t))
+  (inline-letevals (status default)
+    (inline-quote
+     (pcase ,status
+       ("M" 'treemacs-git-modified-face)
+       ("U" 'treemacs-git-conflict-face)
+       ("?" 'treemacs-git-untracked-face)
+       ("!" 'treemacs-git-ignored-face)
+       ("A" 'treemacs-git-added-face)
+       ("R" 'treemacs-git-renamed-face)
+       (_   ,default)))))
+
 (define-inline treemacs--get-button-face (path git-info default)
   "Return the appropriate face for PATH based on GIT-INFO.
 If there is no git entry for PATH return DEFAULT.
@@ -154,14 +172,7 @@ DEFAULT: Face"
   (declare (pure t) (side-effect-free t))
   (inline-letevals (path git-info default)
     (inline-quote
-     (pcase (ht-get ,git-info ,path)
-       ("M" 'treemacs-git-modified-face)
-       ("U" 'treemacs-git-conflict-face)
-       ("?" 'treemacs-git-untracked-face)
-       ("!" 'treemacs-git-ignored-face)
-       ("A" 'treemacs-git-added-face)
-       ("R" 'treemacs-git-renamed-face)
-       (_  ,default)))))
+     (treemacs--git-status-face (ht-get ,git-info ,path) ,default))))
 
 (define-inline treemacs--get-dir-content (dir)
   "Get the content of DIR, separated into sublists of first dirs, then files."
@@ -633,6 +644,7 @@ PATH: Node Path"
            (when (= 1 (funcall (alist-get (treemacs-button-get btn :state) treemacs-TAB-actions-config)))
              (funcall close-func))))))))
 
+;; TODO(2019/03/15): rename update-directory ???
 (defun treemacs-update-node (path)
   "Update the node identified by its PATH.
 Same as `treemacs-do-update-node', but wraps the call in
@@ -673,12 +685,64 @@ Project: Project Struct"
            (setf pos (treemacs-dom-node->position it))
            (when (treemacs-is-node-expanded? pos)
              (goto-char pos)
+             ;; TODO(2019/01/31): proper do-collapse function?
              (treemacs-TAB-action :purge))
            (treemacs-dom-node->remove-from-dom! it))
          (unless pos (treemacs-goto-node ,path ,project))
          (treemacs-with-writable-buffer
           (treemacs--delete-line)))
        (hl-line-highlight)))))
+
+(defun treemacs-update-individual-file (path)
+  "Update the individual node identified by its PATH.
+Same as `treemacs-do-update-individual-file', but wraps the call in
+`treemacs-save-position'.
+
+PATH: Node Path"
+  (treemacs-save-position
+   (treemacs-do-update-individual-file path)))
+
+(defun treemacs-do-update-individual-file (path)
+  "Update single file node at given PATH.
+Unlike `treemacs-update-node' this does nothing to the children of a node, in
+other words all this function can do is update a node's git fontification.
+
+Works only for files, not direc"
+  (let ((dir (treemacs--parent path))
+        (cmd `("git" "status" "--porcelain" "--ignored" ,path)))
+    (pfuture-callback cmd
+      :directory dir
+      :on-success
+      (progn
+        (ignore status)
+        (treemacs--do-update-individual-node pfuture-buffer path))
+      :on-error
+      (-let [err-str (treemacs--rtrim (pfuture-output-from-buffer pfuture-buffer))]
+        (treemacs-log "Update of node \"%s\" failed with status \"%s\" and result" path (treemacs--rtrim status))
+        (treemacs-log "\"%s\"" (treemacs--rtrim err-str))))))
+
+;; (with-current-buffer (treemacs-get-local-buffer)
+;;   (treemacs-update-individual-file "/home/a/Documents/git/treemacs/src/elisp/treemacs-rendering.el"))
+(defun treemacs--do-update-individual-node (buffer path)
+  "Execution of the update in `treemacs-do-update-node'.
+Run after the git process has finished and its information made available. If
+all conditions apply - the process succeeded, a treemacs exists, and the file at
+the path is visible - the git information is retrieved from the pfuture BUFFER
+and the git status of the file at PATH is updated."
+  (-when-let (treemacs-buffer (treemacs-get-local-buffer))
+    (with-current-buffer treemacs-buffer
+      (when (treemacs-is-path-visible? path)
+        (-when-let (pos (treemacs-find-file-node path))
+          (let* ((git-status
+                  (->> buffer
+                       (pfuture-output-from-buffer)
+                       (treemacs--rtrim)
+                       (s-split " ")
+                       (car)
+                       (s-trim)))
+                 (face (treemacs--git-status-face (substring git-status 0 1) 'treemacs-git-unmodified-face)))
+            (treemacs-with-writable-buffer
+             (put-text-property (button-start pos) (button-end pos) 'face face))))))))
 
 (defun treemacs--maybe-recenter (when &optional new-lines)
   "Potentially recenter based on value of WHEN.

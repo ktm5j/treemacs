@@ -176,6 +176,7 @@ state is achieved."
           file-action
           tag-section-action
           tag-action
+          buffer-leaf-action
           no-match-explanation)
   "Infrastructure macro for setting up actions on different button states.
 Fetches the currently selected button and verifies it's in the correct state
@@ -203,6 +204,8 @@ under or below it."
       (push 'tag-node-closed valid-states))
     (when tag-action
       (push 'tag-node valid-states))
+    (when buffer-leaf-action
+      (push 'treemacs-buffer-leaf-state valid-states))
     `(-when-let (btn (treemacs-current-button))
        (treemacs-without-following
         (let* ((state (treemacs-button-get btn :state))
@@ -232,6 +235,9 @@ under or below it."
                        ,@(when tag-action
                            `((`tag-node
                               ,tag-action)))
+                       ,@(when buffer-leaf-action
+                           `((`treemacs-buffer-leaf-state
+                              ,buffer-leaf-action)))
                        (_ (error "No match achieved even though button's state %s was part of the set of valid states %s"
                                  state ',valid-states)))
                 (when ,save-window
@@ -245,6 +251,7 @@ the on-delete code will run twice."
   `(cl-flet (((symbol-function 'treemacs--filewatch-callback) (symbol-function 'ignore)))
      ,@body))
 
+;; TODO(2019/01/18): project dotfile root?
 (defmacro treemacs-save-position (main-form &rest final-form)
   "Execute MAIN-FORM without switching position.
 Finally execute FINAL-FORM after the code to restore the position has run.
@@ -437,7 +444,7 @@ they will be evaluated only once."
   (treemacs-static-assert (memq op '(:same-as :in :parent-of :in-project :in-workspace))
     "Invalid treemacs-is-path operator: `%s'" op)
   (treemacs-static-assert (or (eq op :in-workspace) right)
-    ":in-workspace operator requires right-side argument.")
+    "%s operator requires right-side argument." op)
   (declare (debug (form form form)))
   (macroexp-let2* nil
       ((left left)

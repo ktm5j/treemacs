@@ -1,5 +1,6 @@
 from os import listdir
-from os.path import isdir
+from os import listdir
+from os.path import isdir, isfile
 from posixpath import join
 import sys
 import os

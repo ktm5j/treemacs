@@ -43,17 +43,9 @@
 (treemacs-import-functions-from "treemacs"
   treemacs-select-window)
 
-(defvar treemacs-valid-button-states
-  '(root-node-open
-    root-node-closed
-    dir-node-open
-    dir-node-closed
-    file-node-open
-    file-node-closed
-    tag-node-open
-    tag-node-closed
-    tag-node)
-  "List of all valid values for treemacs buttons' :state property.")
+;; TODO(2019/01/22):
+(treemacs-import-functions-from "treemacs-buffers"
+  treemacs--visit-buffer)
 
 (defun treemacs-next-line (&optional count)
   "Goto next line.
@@ -127,13 +119,16 @@ executed action, if possible.
 
 This function's exact configuration is stored in `treemacs-TAB-actions-config'."
   (interactive "P")
-  (-when-let (state (treemacs--prop-at-point :state))
-    (--if-let (cdr (assq state treemacs-TAB-actions-config))
-        (progn
-          (funcall it arg)
-          (treemacs--evade-image))
-      (treemacs-pulse-on-failure "No TAB action defined for node of type %s."
-        (propertize (format "%s" state) 'face 'font-lock-type-face)))))
+  (garbage-collect)
+  (-let [s (float-time)]
+    (-when-let (state (treemacs--prop-at-point :state))
+      (--if-let (cdr (assq state treemacs-TAB-actions-config))
+          (progn
+            (funcall it arg)
+            (treemacs--evade-image))
+        (treemacs-pulse-on-failure "No TAB action defined for node of type %s."
+          (propertize (format "%s" state) 'face 'font-lock-type-face))))
+    (message "%ss" (- (float-time) s))))
 
 (defun treemacs-goto-parent-node ()
   "Select parent of selected node, if possible."
@@ -194,9 +189,11 @@ Stay in current window with a prefix argument ARG."
    :dir-action (dired (treemacs-safe-button-get btn :path))
    :tag-section-action (treemacs--visit-or-expand/collapse-tag-node btn arg nil)
    :tag-action (treemacs--goto-tag btn)
+   :buffer-leaf-action (treemacs--visit-buffer (treemacs-safe-button-get btn :buffer))
    :save-window arg
    :ensure-window-split t
-   :window  (-some-> btn (treemacs--nearest-path) (get-file-buffer) (get-buffer-window))
+   :window  (-let [path (-some-> btn (treemacs--nearest-path))]
+              (when (stringp path) (-some-> path (get-file-buffer) (get-buffer-window))))
    :no-match-explanation "Node is neither a file, a directory or a tag - nothing to do here."))
 
 (defun treemacs-visit-node-ace (&optional arg)
@@ -672,7 +669,7 @@ For slower scrolling see `treemacs-previous-line-other-window'"
            (propertize old-name 'face 'font-lock-type-face)
            (propertize new-name 'face 'font-lock-type-face)))))))
   (treemacs--evade-image))
-
+;; TODO(2019/02/18): check double name finish edit
 (defun treemacs-add-project-to-workspace (path &optional name)
   "Add a project at given PATH to the current workspace.
 The PATH's directory name will be used as a NAME for a project. The NAME can
@@ -871,7 +868,6 @@ Only works with a single project in the workspace."
        (unless (treemacs-is-path old-root :same-as new-root)
          (treemacs-do-remove-project-from-workspace project)
          (treemacs-do-add-project-to-workspace new-root new-name)
-         (treemacs-goto-file-node new-root)
          (treemacs-goto-file-node old-root))))))
 
 (defun treemacs-root-down ()

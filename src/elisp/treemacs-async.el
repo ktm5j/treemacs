@@ -42,6 +42,12 @@
         (f-join treemacs-dir "treemacs-git-status.py")
       (f-join treemacs-dir "src/scripts/treemacs-git-status.py"))))
 
+(defvar treemacs--single-file-git-status.py
+  (eval-when-compile
+    (if (member "treemacs-single-file-git-status.py" (directory-files treemacs-dir))
+        (f-join treemacs-dir "treemacs-single-file-git-status.py")
+      (f-join treemacs-dir "src/scripts/treemacs-single-file-git-status.py"))))
+
 (defun treemacs--git-status-process-function (path)
   "Dummy with PATH.
 Real implementation will be `fset' based on `treemacs-git-mode' value."

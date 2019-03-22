@@ -1006,6 +1006,25 @@
                   (treemacs--parse-collapsed-dirs))
               :to-be nil))))
 
+(describe "treemacs--rtrim"
+  (it "Fails on nil input"
+    (expect (treemacs--rtrim nil)
+            :to-throw))
+
+  (it "Fails on empty string"
+    (expect (treemacs--rtrim "")
+            :to-throw))
+
+  (it "Does nothing when input does not need trimming"
+    (-let [input "abc"]
+      (expect (treemacs--rtrim input) :to-equal input)))
+
+  (it "Removes the last newline"
+    (expect (treemacs--rtrim "abc\n") :to-equal "abc"))
+
+  (it "Removes only the last newline"
+    (expect (treemacs--rtrim "abc\n\n\n") :to-equal "abc\n\n")))
+
 (provide 'test-treemacs)
 
 ;;; test-treemacs.el ends here
