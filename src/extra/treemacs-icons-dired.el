@@ -43,6 +43,7 @@
              (not treemacs-icons-dired-displayed)
              dired-subdir-alist)
     (setq-local treemacs-icons-dired-displayed t)
+    (setq-local treemacs-icons (treemacs-theme->gui-icons treemacs--current-theme))
     (pcase-dolist (`(,path . ,pos) dired-subdir-alist)
       (treemacs-icons-dired--display-icons-for-subdir path pos))))
 
@@ -59,7 +60,7 @@
           (if (dired-move-to-filename nil)
               (let* ((file (dired-get-filename nil t))
                      (icon (if (file-directory-p file)
-                               treemacs-icon-closed
+                               treemacs-icon-dir-closed
                              (treemacs-icon-for-file file))))
                 (insert icon))
             (treemacs-return nil))

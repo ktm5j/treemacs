@@ -399,7 +399,7 @@ Will simply return `treemacs--eldoc-msg'."
   (add-to-list 'delete-frame-functions #'treemacs--on-frame-kill)
   (add-hook 'post-command-hook #'treemacs--post-command nil t)
 
-  (treemacs--adjust-icons-to-window-system)
+  (treemacs--select-icon-set)
   (treemacs--setup-icon-highlight)
   (treemacs--setup-icon-background-colors)
   (treemacs--setup-mode-line)
